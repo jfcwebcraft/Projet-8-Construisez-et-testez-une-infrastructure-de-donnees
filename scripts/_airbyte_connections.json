@@ -1,0 +1,20 @@
+{
+  "connections": [
+    {
+      "name": "InfoClimat Stations",
+      "connection_id": "fa94d92c-d1cf-4e37-af69-6029508b1a12"
+    },
+    {
+      "name": "InfoClimat Releves",
+      "connection_id": "a11a7b37-9c1e-4226-931d-9149d2adb913"
+    },
+    {
+      "name": "WUnderground Ichtegem",
+      "connection_id": "f7ecdef1-e58d-4929-9ba9-662aa3573468"
+    },
+    {
+      "name": "WUnderground La Madeleine",
+      "connection_id": "31589023-ac09-4b4c-bf9c-b2990aed065f"
+    }
+  ]
+}
