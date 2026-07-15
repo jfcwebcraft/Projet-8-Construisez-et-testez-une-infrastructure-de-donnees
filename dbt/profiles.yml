@@ -1,0 +1,24 @@
+forecast_weather:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5434
+      user: weather_admin
+      password: "{{ env_var('DWH_POSTGRES_PASSWORD') }}"
+      dbname: weather_dwh
+      schema: marts
+      threads: 4
+      connect_timeout: 30
+    prod:
+      # Profil pour le déploiement AWS RDS (voir section AWS du projet)
+      type: postgres
+      host: "{{ env_var('AWS_RDS_HOST', 'localhost') }}"
+      port: 5432
+      user: "{{ env_var('AWS_RDS_MASTER_USERNAME') }}"
+      password: "{{ env_var('AWS_RDS_MASTER_PASSWORD') }}"
+      dbname: weather_dwh
+      schema: marts
+      threads: 4
+      connect_timeout: 30

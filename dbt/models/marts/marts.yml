@@ -1,0 +1,130 @@
+version: 2
+
+models:
+  - name: dim_weather_stations
+    description: >
+      Dimension des stations météo. Référentiel unique intégrant les 4 stations
+      InfoClimat et les 2 stations Weather Underground du projet Forecast 2.0.
+      Les métadonnées des stations amateurs (hardware, software) proviennent du
+      seed dim_stations_seed.csv car elles ne sont pas disponibles via l'API Airbyte.
+    columns:
+      - name: station_id
+        description: "Clé naturelle de la station (ex : IICHTE19, 07015)."
+        data_tests:
+          - not_null
+          - unique
+      - name: nom_station
+        description: "Nom usuel de la station."
+        data_tests:
+          - not_null
+      - name: latitude
+        description: "Latitude WGS84 (degrés décimaux)."
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -90
+              max_value: 90
+      - name: longitude
+        description: "Longitude WGS84 (degrés décimaux)."
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -180
+              max_value: 180
+      - name: type_station
+        description: "Type de station (static, synop, amateur)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['static', 'synop', 'amateur']
+      - name: source
+        description: "Réseau source (infoclimat, weather_underground)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['infoclimat', 'weather_underground']
+
+  - name: dim_dates
+    description: >
+      Dimension calendaire couvrant la plage de dates des relevés disponibles.
+      Permet des agrégations temporelles efficaces sans recalcul à la volée.
+    columns:
+      - name: date_jour
+        description: "Clé primaire : date calendaire."
+        data_tests:
+          - not_null
+          - unique
+      - name: annee
+        data_tests:
+          - not_null
+      - name: mois
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 12
+
+  - name: fact_weather_observations
+    description: >
+      Table de faits centrale du schéma en étoile Forecast 2.0.
+      Granularité : 1 observation météo = 1 station × 1 instant (UTC).
+      Contient toutes les mesures météo en unités SI (°C, km/h, hPa, mm).
+    columns:
+      - name: observation_id
+        description: "Clé surrogate de l'observation (MD5 station_id|date_heure_utc|source)."
+        data_tests:
+          - not_null
+          - unique
+      - name: station_id
+        description: "Clé étrangère vers dim_weather_stations.station_id."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_weather_stations')
+              field: station_id
+      - name: date_jour
+        description: "Clé étrangère vers dim_dates.date_jour."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_dates')
+              field: date_jour
+      - name: date_heure_utc
+        description: "Horodatage UTC du relevé."
+        data_tests:
+          - not_null
+      - name: temperature_c
+        description: "Température en degrés Celsius."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: -40
+              max_value: 60
+              where: "temperature_c is not null"
+      - name: humidite_pct
+        description: "Humidité relative en % (0-100)."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              where: "humidite_pct is not null"
+      - name: pression_hpa
+        description: "Pression atmosphérique en hPa."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 950
+              max_value: 1060
+              where: "pression_hpa is not null"
+      - name: vent_moyen_kmh
+        description: "Vitesse moyenne du vent en km/h."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 300
+              where: "vent_moyen_kmh is not null"
+      - name: source
+        description: "Source de données de l'observation."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['infoclimat', 'weather_underground']

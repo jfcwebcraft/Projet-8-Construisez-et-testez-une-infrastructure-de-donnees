@@ -1,0 +1,56 @@
+version: 2
+
+# Déclaration des sources DBT : tables RAW chargées par Airbyte (Destinations V2)
+# dans le schéma raw_airbyte. Le connecteur destination-postgres v2 effectue le
+# typage et le dédoublonnage ("typing & deduping") directement dans la table finale :
+# chaque colonne source devient une colonne SQL typée, en plus des colonnes
+# structurelles _airbyte_raw_id, _airbyte_extracted_at, _airbyte_meta.
+
+sources:
+  - name: raw_airbyte
+    description: "Tables brutes issues de l'ingestion Airbyte, schéma raw_airbyte."
+    schema: raw_airbyte
+    tables:
+
+      - name: infoclimat_stations
+        description: >
+          Métadonnées des stations du réseau InfoClimat (Bergues, Hazebrouck,
+          Armentières, Lille-Lesquin). Source : infoclimat.fr (licence CC BY).
+        columns:
+          - name: _airbyte_raw_id
+            description: "Identifiant unique de l'enregistrement brut (UUID généré à l'ingestion)."
+          - name: _airbyte_extracted_at
+            description: "Horodatage UTC de l'extraction Airbyte."
+
+      - name: infoclimat_releves
+        description: >
+          Relevés météo horaires/infra-horaires des 4 stations InfoClimat
+          du 05/10/2024 au 19/10/2024. Cadence 10 min pour les stations statiques,
+          1 heure pour Lille-Lesquin (synop).
+        columns:
+          - name: _airbyte_raw_id
+            description: "Identifiant unique de l'enregistrement brut."
+          - name: _airbyte_extracted_at
+            description: "Horodatage UTC de l'extraction Airbyte."
+
+      - name: wunderground_ichtegem
+        description: >
+          Relevés de la station amateur Weather Underground à Ichtegem (Belgique)
+          – ID station IICHTE19 – du 01/10/2024 au 07/10/2024. Cadence ~5 min.
+          Unités sources : °F, mph, in Hg, in (pouces précipitations).
+        columns:
+          - name: _airbyte_raw_id
+            description: "Identifiant unique de l'enregistrement brut."
+          - name: _airbyte_extracted_at
+            description: "Horodatage UTC de l'extraction Airbyte."
+
+      - name: wunderground_la_madeleine
+        description: >
+          Relevés de la station amateur Weather Underground à La Madeleine (France)
+          – ID station ILAMAD25 – du 01/10/2024 au 07/10/2024. Cadence ~5 min.
+          Unités sources : °F, mph, in Hg, in (pouces précipitations).
+        columns:
+          - name: _airbyte_raw_id
+            description: "Identifiant unique de l'enregistrement brut."
+          - name: _airbyte_extracted_at
+            description: "Horodatage UTC de l'extraction Airbyte."
