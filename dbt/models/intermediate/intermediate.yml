@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: int_releves_unifies
+    description: >
+      Union de tous les relevés météo (InfoClimat + Weather Underground) dans un
+      schéma de colonnes homogène. Les horodatages sont tous normalisés en UTC.
+      Cette couche sert de base aux tables de faits de la couche marts.
+    columns:
+      - name: raw_id
+        description: "Identifiant unique hérité de la table RAW Airbyte."
+        data_tests:
+          - not_null
+          - unique
+      - name: id_station
+        description: "Identifiant de la station météo."
+        data_tests:
+          - not_null
+      - name: date_heure_utc
+        description: "Horodatage UTC du relevé (normalisé depuis toutes les sources)."
+        data_tests:
+          - not_null
+      - name: source
+        description: "Source de données (infoclimat | weather_underground)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['infoclimat', 'weather_underground']
