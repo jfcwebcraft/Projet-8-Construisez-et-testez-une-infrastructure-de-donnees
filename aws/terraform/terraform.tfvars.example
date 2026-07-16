@@ -1,0 +1,7 @@
+# Copier vers terraform.tfvars et renseigner vos propres valeurs.
+# Ce fichier ne doit JAMAIS être versionné (voir .gitignore).
+
+aws_region         = "eu-west-3"
+project_name       = "greencoop-forecast"
+db_master_username = "weather_admin"
+db_master_password = "changeme_password_fort"

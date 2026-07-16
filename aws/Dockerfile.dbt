@@ -1,0 +1,35 @@
+# Image Docker pour l'exécution de DBT en mode batch (ECS Fargate)
+# Utilisée pour la planification quotidienne des transformations sur AWS.
+
+FROM python:3.11-slim AS base
+
+# Dépendances système minimales
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq-dev \
+        gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installer dbt-postgres dans une version épinglée pour la reproductibilité
+RUN pip install --no-cache-dir \
+    "dbt-core==1.9.0" \
+    "dbt-postgres==1.9.0"
+
+# Copier le projet DBT
+WORKDIR /app
+COPY dbt/dbt_project.yml .
+COPY dbt/packages.yml .
+COPY dbt/profiles.yml .
+COPY dbt/models/ ./models/
+COPY dbt/seeds/ ./seeds/
+COPY dbt/tests/ ./tests/
+# Note : ce projet ne définit pas de macros personnalisées (dossier absent).
+# Seules les macros du package dbt_utils sont utilisées, installées via `dbt deps`.
+
+# Installer les packages dbt (ex: dbt_utils)
+RUN dbt deps
+
+# Le point d'entrée est fourni par la task definition ECS
+# Ex : dbt run --profiles-dir /app --target prod
+ENTRYPOINT ["dbt"]
+CMD ["--help"]
