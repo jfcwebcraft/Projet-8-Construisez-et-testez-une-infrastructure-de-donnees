@@ -1,0 +1,21 @@
+# Image Docker pour le chargement ponctuel des données RAW dans RDS.
+#
+# Contexte : Airbyte OSS tourne uniquement en local (Docker Compose) dans ce
+# projet. Cette image reproduit le schéma de sortie qu'Airbyte génère
+# nativement (Destinations V2) pour permettre l'exécution du pipeline DBT
+# complet contre l'instance RDS de production. Voir JOURNAL_DE_BORD.md pour
+# le détail de cette décision.
+
+FROM python:3.11-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir psycopg2-binary==2.9.9
+
+WORKDIR /app
+COPY scripts/ingestion/charger_raw_rds.py ./charger_raw_rds.py
+COPY airbyte/data/ ./data/
+
+ENTRYPOINT ["python", "charger_raw_rds.py"]
