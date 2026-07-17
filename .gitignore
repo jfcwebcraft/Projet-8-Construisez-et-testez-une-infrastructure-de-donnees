@@ -1,0 +1,67 @@
+# ============================================================
+# Secrets et configuration locale — NE JAMAIS VERSIONNER
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*credentials*.json
+aws/terraform/terraform.tfvars
+!aws/terraform/terraform.tfvars.example
+
+# ============================================================
+# Données sources volumineuses (non destinées au dépôt public)
+# ============================================================
+Données/
+airbyte/data/
+data/raw_sources/
+
+# ============================================================
+# Notes de soutenance et documents d'évaluation internes (privés)
+# ============================================================
+archives/
+
+# ============================================================
+# DBT — fichiers générés, logs, packages téléchargés
+# ============================================================
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+dbt/package-lock.yml
+
+# ============================================================
+# Terraform — état et providers téléchargés
+# ============================================================
+aws/terraform/.terraform/
+aws/terraform/*.tfstate
+aws/terraform/*.tfstate.*
+aws/terraform/.terraform.lock.hcl
+aws/terraform/tfplan
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+
+# ============================================================
+# Fichiers temporaires / OS
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.bak
+
+# ============================================================
+# Éditeurs
+# ============================================================
+.vscode/settings.json
+.idea/
+
+dedup.py

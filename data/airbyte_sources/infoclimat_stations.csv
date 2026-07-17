@@ -1,0 +1,5 @@
+id_station,nom_station,latitude,longitude,altitude_m,type_station,licence,licence_url,licence_source,licence_metadonnees_url
+00052,Armentières,50.689,2.877,16,static,CC BY,https://creativecommons.org/licenses/by/2.0/fr/,infoclimat.fr,https://www.infoclimat.fr/stations/metadonnees.php?id=00052
+000R5,Bergues,50.968,2.441,17,static,CC BY,https://creativecommons.org/licenses/by/2.0/fr/,infoclimat.fr,https://www.infoclimat.fr/stations/metadonnees.php?id=000R5
+07015,Lille-Lesquin,50.575,3.092,47,synop,Etalab Open License,https://www.etalab.gouv.fr/licence-ouverte-open-licence,Meteo-France via infoclimat.fr,https://donneespubliques.meteofrance.fr/metadonnees_publiques/fiches/fiche_59343001.pdf
+STATIC0010,Hazebrouck,50.734,2.545,31,static,CC BY,https://creativecommons.org/licenses/by/2.0/fr/,infoclimat.fr,https://www.infoclimat.fr/stations/metadonnees.php?id=STATIC0010
