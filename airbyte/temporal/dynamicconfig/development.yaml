@@ -1,0 +1,4 @@
+# Temporal dynamic config for Airbyte OSS
+limit.maxIDLength:
+  - value: 255
+    constraints: {}

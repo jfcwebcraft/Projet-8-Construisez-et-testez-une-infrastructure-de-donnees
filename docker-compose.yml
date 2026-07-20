@@ -1,0 +1,336 @@
+# Socle Docker du projet Forecast 2.0
+#
+# Ce fichier déploie :
+#   - une base PostgreSQL dédiée aux données brutes et transformées (weather_dwh)
+#   - la stack Airbyte OSS complète (dernière version compatible Docker Compose,
+#     avant la bascule officielle de l'outil vers abctl/Kubernetes)
+#
+# Les identifiants sensibles sont lus depuis le fichier .env (non versionné).
+# Voir .env.example pour la liste des variables à renseigner.
+
+x-logging: &default-logging
+  options:
+    max-size: "50m"
+    max-file: "3"
+  driver: json-file
+
+services:
+  # ------------------------------------------------------------------
+  # Base de données analytique du projet (destination Airbyte + DBT)
+  # ------------------------------------------------------------------
+  postgres_dwh:
+    image: postgres:16.4
+    container_name: weather_postgres_dwh
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DWH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DWH_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DWH_POSTGRES_DB}
+    ports:
+      - "${DWH_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_dwh_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DWH_POSTGRES_USER} -d ${DWH_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - weather_network
+    logging: *default-logging
+
+  # ------------------------------------------------------------------
+  # Stack Airbyte OSS (version 0.63.14, dernier déploiement Docker Compose supporté)
+  # ------------------------------------------------------------------
+  docker-proxy:
+    image: alpine/socat
+    command: -t 900 TCP-LISTEN:2375,fork,reuseaddr UNIX-CONNECT:/var/run/docker.sock
+    ports:
+      - "2375"
+    user: root
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    networks:
+      - airbyte_internal
+    logging: *default-logging
+
+  init:
+    image: airbyte/init:${AIRBYTE_VERSION}
+    container_name: airbyte-init
+    command: /bin/sh -c "./scripts/create_mount_directories.sh /local_parent ${HACK_LOCAL_ROOT_PARENT} ${LOCAL_ROOT}"
+    environment:
+      - LOCAL_ROOT=${LOCAL_ROOT}
+      - HACK_LOCAL_ROOT_PARENT=${HACK_LOCAL_ROOT_PARENT}
+    volumes:
+      - ${HACK_LOCAL_ROOT_PARENT}:/local_parent
+    logging: *default-logging
+
+  bootloader:
+    image: airbyte/bootloader:${AIRBYTE_VERSION}
+    container_name: airbyte-bootloader
+    environment:
+      - AIRBYTE_VERSION=${AIRBYTE_VERSION}
+      - DATABASE_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - DATABASE_URL=${AIRBYTE_DATABASE_URL}
+      - DATABASE_USER=${AIRBYTE_DATABASE_USER}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.26.001
+      - CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.23.002
+    networks:
+      - airbyte_internal
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      airbyte_db:
+        condition: service_healthy
+    logging: *default-logging
+
+  airbyte_db:
+    image: airbyte/db:${AIRBYTE_VERSION}
+    container_name: airbyte-db
+    restart: unless-stopped
+    environment:
+      - DATABASE_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - DATABASE_URL=${AIRBYTE_DATABASE_URL}
+      - DATABASE_USER=${AIRBYTE_DATABASE_USER}
+      - POSTGRES_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - POSTGRES_USER=${AIRBYTE_DATABASE_USER}
+    volumes:
+      - airbyte_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AIRBYTE_DATABASE_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airbyte_internal
+    logging: *default-logging
+
+  worker:
+    image: airbyte/worker:${AIRBYTE_VERSION}
+    container_name: airbyte-worker
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=${AIRBYTE_VERSION}
+      - DATABASE_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - DATABASE_URL=${AIRBYTE_DATABASE_URL}
+      - DATABASE_USER=${AIRBYTE_DATABASE_USER}
+      - WORKSPACE_ROOT=${WORKSPACE_ROOT}
+      - LOCAL_ROOT=${LOCAL_ROOT}
+      - LOCAL_DOCKER_MOUNT=${LOCAL_DOCKER_MOUNT}
+      - WORKSPACE_DOCKER_MOUNT=${WORKSPACE_DOCKER_MOUNT}
+      - CONFIG_ROOT=${CONFIG_ROOT}
+      - DOCKER_HOST=docker-proxy:2375
+      # Fixe la version d'API Docker utilisée par le CLI interne du worker.
+      # Nécessaire car le proxy socat expose l'API du démon Docker Desktop hôte
+      # (>=1.44), plus récente que celle attendue par défaut par le client (1.41).
+      - DOCKER_API_VERSION=1.44
+      - TEMPORAL_HOST=airbyte-temporal:7233
+      - INTERNAL_API_HOST=http://airbyte-server:8001
+      - CONNECTOR_BUILDER_API_HOST=airbyte-connector-builder-server:8080
+      - WORKLOAD_API_HOST=http://workload-api-server:8007
+      - AUTO_DETECT_SCHEMA=true
+      - SYNC_JOB_MAX_ATTEMPTS=3
+      - SYNC_JOB_MAX_TIMEOUT_DAYS=3
+      - SYNC_JOB_INIT_RETRY_TIMEOUT_MINUTES=5
+      - MAX_SYNC_WORKERS=5
+      - MAX_CHECK_WORKERS=5
+      - MAX_NOTIFY_WORKERS=5
+      - SHOULD_RUN_NOTIFY_WORKFLOWS=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECRET_PERSISTENCE=TESTING_CONFIG_DB_TABLE
+      - FEATURE_FLAG_CLIENT=config
+      - STORAGE_TYPE=local
+      - STORAGE_BUCKET_ACTIVITY_PAYLOAD=payload-storage
+      - STORAGE_BUCKET_LOG=airbyte-dev-logs
+      - STORAGE_BUCKET_STATE=state-storage
+      - STORAGE_BUCKET_WORKLOAD_OUTPUT=state-storage
+      - MICRONAUT_ENVIRONMENTS=control-plane
+      - WORKER_ENVIRONMENT=docker
+      - AIRBYTE_ROLE=
+      - CONFIG_DATABASE_USER=
+      - CONFIG_DATABASE_PASSWORD=
+      - CONFIG_DATABASE_URL=
+      - JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.26.001
+      - CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.23.002
+    configs:
+      - flags
+    volumes:
+      - airbyte_workspace:${WORKSPACE_ROOT}
+      - airbyte_local_root:${LOCAL_ROOT}
+    ports:
+      - "9000"
+    networks:
+      - airbyte_internal
+    depends_on:
+      bootloader:
+        condition: service_completed_successfully
+    logging: *default-logging
+
+  server:
+    image: airbyte/server:${AIRBYTE_VERSION}
+    container_name: airbyte-server
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=${AIRBYTE_VERSION}
+      - DATABASE_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - DATABASE_URL=${AIRBYTE_DATABASE_URL}
+      - DATABASE_USER=${AIRBYTE_DATABASE_USER}
+      - CONFIG_ROOT=${CONFIG_ROOT}
+      - WORKSPACE_ROOT=${WORKSPACE_ROOT}
+      - TEMPORAL_HOST=airbyte-temporal:7233
+      - WEBAPP_URL=http://localhost:${AIRBYTE_WEBAPP_PORT:-8000}/
+      - AUTO_DETECT_SCHEMA=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECRET_PERSISTENCE=TESTING_CONFIG_DB_TABLE
+      - FEATURE_FLAG_CLIENT=config
+      - STORAGE_TYPE=local
+      - STORAGE_BUCKET_ACTIVITY_PAYLOAD=payload-storage
+      - STORAGE_BUCKET_LOG=airbyte-dev-logs
+      - STORAGE_BUCKET_STATE=state-storage
+      - STORAGE_BUCKET_WORKLOAD_OUTPUT=state-storage
+      - CONNECTOR_BUILDER_SERVER_API_HOST=http://airbyte-connector-builder-server:8080
+      - INTERNAL_API_HOST=http://airbyte-server:8001
+      - AIRBYTE_API_HOST=airbyte-server:8001/api/public
+      - MICRONAUT_ENVIRONMENTS=control-plane
+      - CONFIG_DATABASE_USER=
+      - CONFIG_DATABASE_PASSWORD=
+      - CONFIG_DATABASE_URL=
+      - JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.26.001
+      - CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.23.002
+    ports:
+      - "8001"
+    configs:
+      - flags
+    volumes:
+      - airbyte_workspace:${WORKSPACE_ROOT}
+      - airbyte_data:${CONFIG_ROOT}
+      - airbyte_local_root:${LOCAL_ROOT}
+    networks:
+      - airbyte_internal
+    depends_on:
+      bootloader:
+        condition: service_completed_successfully
+    logging: *default-logging
+
+  webapp:
+    image: airbyte/webapp:${AIRBYTE_VERSION}
+    container_name: airbyte-webapp
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_SERVER_HOST=airbyte-server:8001
+      - CONNECTOR_BUILDER_API_HOST=airbyte-connector-builder-server:8080
+      - KEYCLOAK_INTERNAL_HOST=localhost
+    networks:
+      - airbyte_internal
+    depends_on:
+      bootloader:
+        condition: service_completed_successfully
+    logging: *default-logging
+
+  airbyte-temporal:
+    image: airbyte/temporal:${AIRBYTE_VERSION}
+    container_name: airbyte-temporal
+    restart: unless-stopped
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - POSTGRES_PWD=${AIRBYTE_DATABASE_PASSWORD}
+      - POSTGRES_SEEDS=airbyte_db
+      - POSTGRES_USER=${AIRBYTE_DATABASE_USER}
+    volumes:
+      - ./airbyte/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    networks:
+      - airbyte_internal
+    logging: *default-logging
+
+  airbyte-cron:
+    image: airbyte/cron:${AIRBYTE_VERSION}
+    container_name: airbyte-cron
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=${AIRBYTE_VERSION}
+      - DATABASE_PASSWORD=${AIRBYTE_DATABASE_PASSWORD}
+      - DATABASE_URL=${AIRBYTE_DATABASE_URL}
+      - DATABASE_USER=${AIRBYTE_DATABASE_USER}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WORKSPACE_ROOT=${WORKSPACE_ROOT}
+      - UPDATE_DEFINITIONS_CRON_ENABLED=true
+      - MICRONAUT_ENVIRONMENTS=control-plane
+      - CONFIG_DATABASE_USER=
+      - CONFIG_DATABASE_PASSWORD=
+      - CONFIG_DATABASE_URL=
+      - SECRET_PERSISTENCE=TESTING_CONFIG_DB_TABLE
+      - FEATURE_FLAG_CLIENT=config
+      - JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.26.001
+      - CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.23.002
+    configs:
+      - flags
+    volumes:
+      - airbyte_workspace:${WORKSPACE_ROOT}
+    networks:
+      - airbyte_internal
+    depends_on:
+      bootloader:
+        condition: service_completed_successfully
+    logging: *default-logging
+
+  airbyte-connector-builder-server:
+    image: airbyte/connector-builder-server:${AIRBYTE_VERSION}
+    container_name: airbyte-connector-builder-server
+    restart: unless-stopped
+    ports:
+      - "8080"
+    environment:
+      - AIRBYTE_VERSION=${AIRBYTE_VERSION}
+    networks:
+      - airbyte_internal
+    depends_on:
+      bootloader:
+        condition: service_completed_successfully
+    logging: *default-logging
+
+  airbyte-proxy:
+    image: airbyte/proxy:${AIRBYTE_VERSION}
+    container_name: airbyte-proxy
+    restart: unless-stopped
+    ports:
+      - "${AIRBYTE_WEBAPP_PORT:-8000}:8000"
+      - "8001:8001"
+      - "8003:8003"
+      - "8006:8006"
+    environment:
+      - BASIC_AUTH_USERNAME=${AIRBYTE_BASIC_AUTH_USERNAME}
+      - BASIC_AUTH_PASSWORD=${AIRBYTE_BASIC_AUTH_PASSWORD}
+      - BASIC_AUTH_PROXY_TIMEOUT=900
+    networks:
+      - airbyte_internal
+      - weather_network
+    depends_on:
+      - webapp
+      - server
+    logging: *default-logging
+
+volumes:
+  postgres_dwh_data:
+    name: weather_postgres_dwh_data
+  airbyte_workspace:
+    name: airbyte_workspace
+  airbyte_local_root:
+    name: airbyte_local_root
+  airbyte_data:
+    name: airbyte_data
+  airbyte_db_data:
+    name: airbyte_db_data
+
+configs:
+  flags:
+    file: ./airbyte/flags.yml
+
+networks:
+  weather_network:
+    name: weather_network
+  airbyte_internal:
+    name: airbyte_internal
