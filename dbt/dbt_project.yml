@@ -1,0 +1,44 @@
+﻿name: 'forecast_weather'
+version: '2.0.0'
+config-version: 2
+
+profile: 'forecast_weather'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  forecast_weather:
+      staging:
+        +materialized: view
+        +schema: staging
+      intermediate:
+        +materialized: view
+        +schema: intermediate
+      marts:
+        +materialized: table
+        +schema: marts
+        # Index sur les colonnes de jointure et de filtre fréquents
+        dim_weather_stations:
+          +indexes:
+            - columns: ["station_id"]
+              unique: true
+            - columns: ["source"]
+        dim_dates:
+          +indexes:
+            - columns: ["date_jour"]
+              unique: true
+            - columns: ["annee", "mois"]
+        fact_weather_observations:
+          +indexes:
+            - columns: ["station_id"]
+            - columns: ["date_heure_utc"]
+            - columns: ["date_jour"]

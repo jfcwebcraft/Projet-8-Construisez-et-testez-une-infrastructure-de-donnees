@@ -1,0 +1,7 @@
+station_id,nom_station,latitude,longitude,altitude_m,type_station,source,hardware,software,notes
+IICHTE19,WeerstationBS,51.092,2.999,15,amateur,weather_underground,other,EasyWeatherV1.6.6,Station Weather Underground à Ichtegem (Belgique)
+ILAMAD25,La Madeleine,50.659,3.07,23,amateur,weather_underground,other,EasyWeatherPro_V5.1.6,Station Weather Underground à La Madeleine (France)
+00052,Armentières,50.689,2.877,16,static,infoclimat,,,"Station InfoClimat, réseau statique (CC BY)"
+000R5,Bergues,50.968,2.441,17,static,infoclimat,,,"Station InfoClimat, réseau statique (CC BY)"
+07015,Lille-Lesquin,50.575,3.092,47,synop,infoclimat,,,"Station synop Météo-France via InfoClimat (Etalab Open License)"
+STATIC0010,Hazebrouck,50.734,2.545,31,static,infoclimat,,,"Station InfoClimat, réseau statique (CC BY)"

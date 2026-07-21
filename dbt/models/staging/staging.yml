@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: stg_infoclimat_stations
+    description: >
+      Métadonnées des stations InfoClimat standardisées (types, renommage).
+      Données en lecture directe depuis la table RAW Airbyte.
+    columns:
+      - name: id_station
+        description: "Identifiant unique de la station InfoClimat (clé naturelle)."
+        data_tests:
+          - not_null
+          - unique
+      - name: nom_station
+        description: "Nom de la station."
+        data_tests:
+          - not_null
+      - name: latitude
+        description: "Latitude en degrés décimaux WGS84."
+        data_tests:
+          - not_null
+      - name: longitude
+        description: "Longitude en degrés décimaux WGS84."
+        data_tests:
+          - not_null
+      - name: source
+        description: "Source de données ('infoclimat')."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['infoclimat']
+
+  - name: stg_infoclimat_releves
+    description: >
+      Relevés météo horaires InfoClimat standardisés et typés.
+      Unités déjà en SI (aucune conversion nécessaire).
+    columns:
+      - name: id_station
+        description: "Identifiant de la station source."
+        data_tests:
+          - not_null
+      - name: date_heure_utc
+        description: "Horodatage UTC du relevé."
+        data_tests:
+          - not_null
+      - name: temperature_c
+        description: "Température en degrés Celsius."
+      - name: humidite_pct
+        description: "Humidité relative en pourcentage (0-100)."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: source
+        description: "Source de données ('infoclimat')."
+        data_tests:
+          - not_null
+
+  - name: stg_wunderground_releves
+    description: >
+      Relevés Weather Underground des deux stations amateurs (Ichtegem et La Madeleine).
+      Unités converties de l'impérial vers le SI (°C, km/h, hPa, mm).
+    columns:
+      - name: id_station
+        description: "Identifiant de la station WUnderground (IICHTE19 ou ILAMAD25)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['IICHTE19', 'ILAMAD25']
+      - name: date_heure_locale
+        description: "Horodatage local du relevé (fuseau horaire non normalisé en staging)."
+        data_tests:
+          - not_null
+      - name: temperature_c
+        description: "Température en degrés Celsius (convertie depuis °F)."
+      - name: humidite_pct
+        description: "Humidité relative en pourcentage (0-100)."
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: source
+        description: "Source de données ('weather_underground')."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['weather_underground']
