@@ -1,0 +1,35 @@
+# Configuration Docker Compose d'Airbyte OSS pour le déploiement sur AWS EC2
+# intègre la redirection centralisée des logs vers AWS CloudWatch.
+
+version: "3.8"
+
+services:
+  airbyte-server:
+    image: airbyte/server:v0.63.14
+    container_name: airbyte-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - AIRBYTE_VERSION=0.63.14
+      - LOG_LEVEL=INFO
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/airbyte/Forecast-2-0"
+        awslogs-region: "eu-west-3"
+        awslogs-stream-prefix: "airbyte-server"
+
+  airbyte-worker:
+    image: airbyte/worker:v0.63.14
+    container_name: airbyte-worker
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=0.63.14
+      - LOG_LEVEL=INFO
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/airbyte/Forecast-2-0"
+        awslogs-region: "eu-west-3"
+        awslogs-stream-prefix: "airbyte-worker"

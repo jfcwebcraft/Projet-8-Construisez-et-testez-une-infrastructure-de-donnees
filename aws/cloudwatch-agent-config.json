@@ -1,0 +1,26 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/docker.log",
+            "log_group_name": "/airbyte/Forecast-2-0",
+            "log_stream_name": "docker-engine-{instance_id}",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/home/ec2-user/airbyte/logs/**/*.log",
+            "log_group_name": "/airbyte/Forecast-2-0",
+            "log_stream_name": "airbyte-sync-{instance_id}",
+            "retention_in_days": 30
+          }
+        ]
+      }
+    }
+  }
+}
