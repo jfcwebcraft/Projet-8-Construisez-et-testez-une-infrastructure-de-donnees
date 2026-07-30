@@ -1,0 +1,43 @@
+{
+  "genere_le_utc": "2026-07-30T20:44:19.512304+00:00",
+  "ingestion_raw_airbyte": {
+    "infoclimat_stations": 4,
+    "infoclimat_releves": 1143,
+    "wunderground_ichtegem": 1899,
+    "wunderground_la_madeleine": 1908
+  },
+  "completude_pipeline": {
+    "releves_bruts_ingeres": 4950,
+    "releves_couche_intermediate": 1722,
+    "observations_table_de_faits": 1722,
+    "rejets_entre_raw_et_intermediate": 3228,
+    "rejets_entre_intermediate_et_fact": 0,
+    "taux_completude_pct": 34.79
+  },
+  "qualite_valeurs_nulles": {
+    "total_observations": 1722,
+    "valeurs_nulles_par_colonne": {
+      "temperature_c": 0,
+      "humidite_pct": 0,
+      "pression_hpa": 0,
+      "vent_moyen_kmh": 0,
+      "date_heure_utc": 0,
+      "station_id": 0
+    }
+  },
+  "latence_accessibilite": {
+    "premiere_ingestion_airbyte_utc": "2026-07-30T06:10:39+00:00",
+    "derniere_ingestion_airbyte_utc": "2026-07-30T06:21:54+00:00",
+    "dernier_run_dbt_termine_utc": "2026-07-24T19:58:45.257450Z",
+    "duree_execution_dbt_secondes": 4.54,
+    "delai_ingestion_vers_disponibilite_marts_secondes": -469388.74
+  },
+  "tests_dbt": {
+    "nombre_total_tests": 56,
+    "resultats_par_statut": {
+      "pass": 56
+    },
+    "tous_tests_passes": true,
+    "temps_execution_total_dbt_secondes": 4.54
+  }
+}
